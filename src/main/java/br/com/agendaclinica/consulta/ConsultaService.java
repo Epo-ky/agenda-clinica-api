@@ -1,6 +1,7 @@
 package br.com.agendaclinica.consulta;
 
 import br.com.agendaclinica.common.BusinessException;
+import br.com.agendaclinica.common.NotFoundException;
 import br.com.agendaclinica.paciente.Paciente;
 import br.com.agendaclinica.paciente.PacienteService;
 import br.com.agendaclinica.profissional.Profissional;
@@ -26,6 +27,7 @@ public class ConsultaService {
     static final LocalTime ABERTURA = LocalTime.of(8, 0);
     static final LocalTime FECHAMENTO = LocalTime.of(18, 0);
     static final Duration ANTECEDENCIA_MINIMA = Duration.ofHours(1);
+    static final Duration ANTECEDENCIA_CANCELAMENTO = Duration.ofHours(24);
 
     private final ConsultaRepository repository;
     private final PacienteService pacienteService;
@@ -79,6 +81,59 @@ public class ConsultaService {
         consulta.setFim(fim);
         consulta.setStatus(StatusConsulta.AGENDADA);
         return ConsultaResponse.from(repository.save(consulta));
+    }
+
+    @Transactional
+    public ConsultaResponse confirmar(Long id) {
+        Consulta consulta = buscar(id);
+        exigirTransicao(consulta, StatusConsulta.CONFIRMADA);
+        consulta.setStatus(StatusConsulta.CONFIRMADA);
+        return salvarAlteracao(consulta);
+    }
+
+    @Transactional
+    public ConsultaResponse realizar(Long id) {
+        Consulta consulta = buscar(id);
+        exigirTransicao(consulta, StatusConsulta.REALIZADA);
+        // Regra 8: só depois do horário de início
+        if (LocalDateTime.now(clock).isBefore(consulta.getInicio())) {
+            throw new BusinessException("A consulta só pode ser marcada como realizada depois do horário de início");
+        }
+        consulta.setStatus(StatusConsulta.REALIZADA);
+        return salvarAlteracao(consulta);
+    }
+
+    @Transactional
+    public ConsultaResponse cancelar(Long id, String motivo) {
+        Consulta consulta = buscar(id);
+        exigirTransicao(consulta, StatusConsulta.CANCELADA);
+        // Regra 7: motivo obrigatório e pelo menos 24 horas de antecedência
+        if (motivo == null || motivo.isBlank()) {
+            throw new BusinessException("O cancelamento exige um motivo");
+        }
+        if (LocalDateTime.now(clock).plus(ANTECEDENCIA_CANCELAMENTO).isAfter(consulta.getInicio())) {
+            throw new BusinessException("O cancelamento exige pelo menos 24 horas de antecedência");
+        }
+        consulta.setStatus(StatusConsulta.CANCELADA);
+        consulta.setMotivoCancelamento(motivo.trim());
+        return salvarAlteracao(consulta);
+    }
+
+    private ConsultaResponse salvarAlteracao(Consulta consulta) {
+        consulta.setAtualizadoEm(LocalDateTime.now(clock));
+        return ConsultaResponse.from(repository.save(consulta));
+    }
+
+    private Consulta buscar(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Consulta não encontrada: " + id));
+    }
+
+    private void exigirTransicao(Consulta consulta, StatusConsulta destino) {
+        if (!consulta.getStatus().podeIrPara(destino)) {
+            throw new BusinessException("Não é possível passar a consulta de "
+                    + consulta.getStatus() + " para " + destino);
+        }
     }
 
     @Transactional(readOnly = true)

@@ -7,6 +7,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,6 +40,21 @@ public class ConsultaController {
             @RequestParam(required = false) StatusConsulta status,
             @PageableDefault(size = 20, sort = "inicio") Pageable pageable) {
         return PageResponse.from(service.listar(profissionalId, pacienteId, data, status, pageable), c -> c);
+    }
+
+    @PatchMapping("/consultas/{id}/confirmar")
+    public ConsultaResponse confirmar(@PathVariable Long id) {
+        return service.confirmar(id);
+    }
+
+    @PatchMapping("/consultas/{id}/realizar")
+    public ConsultaResponse realizar(@PathVariable Long id) {
+        return service.realizar(id);
+    }
+
+    @PatchMapping("/consultas/{id}/cancelar")
+    public ConsultaResponse cancelar(@PathVariable Long id, @Valid @RequestBody CancelamentoRequest req) {
+        return service.cancelar(id, req.motivo());
     }
 
     @GetMapping("/profissionais/{id}/horarios-livres")

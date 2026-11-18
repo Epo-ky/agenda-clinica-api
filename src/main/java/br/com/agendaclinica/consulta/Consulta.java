@@ -13,7 +13,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
@@ -60,11 +59,6 @@ public class Consulta {
         }
     }
 
-    @PreUpdate
-    void aoAtualizar() {
-        atualizadoEm = LocalDateTime.now();
-    }
-
     public Long getId() { return id; }
 
     public Paciente getPaciente() { return paciente; }
@@ -87,4 +81,7 @@ public class Consulta {
 
     public LocalDateTime getCriadoEm() { return criadoEm; }
     public LocalDateTime getAtualizadoEm() { return atualizadoEm; }
+    // Gravado pelo service (com o Clock injetado), e não por @PreUpdate: o callback só roda no flush,
+    // depois de a resposta já ter sido montada, e devolveria o valor antigo.
+    public void setAtualizadoEm(LocalDateTime atualizadoEm) { this.atualizadoEm = atualizadoEm; }
 }
