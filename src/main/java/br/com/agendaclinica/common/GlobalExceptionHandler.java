@@ -7,7 +7,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -45,6 +47,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "Não encontrado", ex.getMessage(), req);
     }
 
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiError> handleBusiness(BusinessException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, "Regra de negócio violada", ex.getMessage(), req);
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiError> handleConflict(ConflictException ex, HttpServletRequest req) {
         return build(HttpStatus.CONFLICT, "Conflito", ex.getMessage(), req);
@@ -57,11 +64,37 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "Conflito", "Registro duplicado ou inconsistente", req);
     }
 
-    /** Qualquer outra falha: 500 sem vazar detalhe interno para o cliente. */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParam(MissingServletRequestParameterException ex,
+                                                       HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "Requisição inválida",
+                "O parâmetro '" + ex.getParameterName() + "' é obrigatório", req);
+    }
+
+    /**
+     * Qualquer outra falha: 500 sem vazar detalhe interno para o cliente.
+     * Exceções do próprio Spring (rota inexistente, método ou tipo de conteúdo não aceito) implementam
+     * ErrorResponse e já carregam o status certo (404, 405, 415...): preservamos esse status.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest req) {
+        if (ex instanceof ErrorResponse spring) {
+            HttpStatus status = HttpStatus.valueOf(spring.getStatusCode().value());
+            return build(status, mensagemPadrao(status), mensagemPadrao(status), req);
+        }
         log.error("Erro inesperado em {}", req.getRequestURI(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno", "Ocorreu um erro inesperado", req);
+    }
+
+    private static String mensagemPadrao(HttpStatus status) {
+        return switch (status) {
+            case NOT_FOUND -> "Recurso não encontrado";
+            case METHOD_NOT_ALLOWED -> "Método HTTP não permitido para este recurso";
+            case UNSUPPORTED_MEDIA_TYPE -> "Tipo de conteúdo não suportado (use application/json)";
+            case NOT_ACCEPTABLE -> "Formato de resposta não disponível";
+            case BAD_REQUEST -> "Requisição inválida";
+            default -> status.getReasonPhrase();
+        };
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String erro, String mensagem, HttpServletRequest req) {
