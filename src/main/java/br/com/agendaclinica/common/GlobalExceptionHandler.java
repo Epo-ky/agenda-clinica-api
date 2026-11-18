@@ -7,6 +7,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -45,6 +46,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NotFoundException ex, HttpServletRequest req) {
         return build(HttpStatus.NOT_FOUND, "Não encontrado", ex.getMessage(), req);
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiError> handleUnauthorized(UnauthorizedException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, "Não autenticado", ex.getMessage(), req);
+    }
+
+    /**
+     * @PreAuthorize lança AccessDeniedException de dentro do controller, ou seja, DEPOIS do filtro de segurança.
+     * Sem este handler, o "catch-all" abaixo a transformaria em 500.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
+        return build(HttpStatus.FORBIDDEN, "Acesso negado", "Seu perfil não tem permissão para esta operação", req);
     }
 
     @ExceptionHandler(BusinessException.class)

@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ import java.net.URI;
 
 @RestController
 @RequestMapping("/pacientes")
+@PreAuthorize("hasAnyRole('ADMIN', 'RECEPCAO')")
 public class PacienteController {
 
     private final PacienteService service;
@@ -54,6 +56,7 @@ public class PacienteController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> inativar(@PathVariable Long id) {
         service.inativar(id);
         return ResponseEntity.noContent().build();
