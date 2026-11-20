@@ -136,5 +136,11 @@ escritos, mas nunca executados nesta máquina. Quem valida são os jobs do GitHu
 
 ## Pendente
 
-- Conferir o resultado do CI no GitHub (primeira execução).
-- Etapa 8: README completo, badge do CI e post.
+- Prints do Swagger e um vídeo curto (login, Authorize, agendar, conflito 422, 403 por perfil) para o post.
+- Post no LinkedIn.
+
+## Resultado do CI
+
+A primeira execução do GitHub Actions passou nos dois jobs (`build` com 114 + 15 testes e cobertura;
+`docker` com `docker compose up`, login e rota protegida), em 3 min 4 s. Foi essa execução que validou o
+`Dockerfile` e o `docker-compose.yml`, que eu não consegui rodar localmente.
