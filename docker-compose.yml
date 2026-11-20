@@ -1,0 +1,36 @@
+# Sobe a API + o PostgreSQL com um comando:  docker compose up --build
+# As variáveis vêm do arquivo .env (copie o .env.example e preencha).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agenda_clinica
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no arquivo .env}
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    # A API só sobe depois que o banco responder (ver depends_on abaixo).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d agenda_clinica"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Dentro da rede do compose o banco se chama "db" (nome do serviço), não "localhost".
+      DB_URL: jdbc:postgresql://db:5432/agenda_clinica
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no arquivo .env}
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no arquivo .env (mínimo 32 caracteres)}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@agendaclinica.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Defina ADMIN_PASSWORD no arquivo .env (mínimo 8 caracteres)}
+    ports:
+      - "${APP_PORT:-8081}:8080"
+
+volumes:
+  dbdata:

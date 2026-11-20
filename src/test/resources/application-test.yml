@@ -1,0 +1,14 @@
+# Perfil "test": usado só pelos testes de integração (*IT). Aponta para um banco SEPARADO,
+# para nunca mexer nos dados de desenvolvimento.
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/agenda_clinica_test}
+    username: ${TEST_DB_USER:postgres}
+    password: ${TEST_DB_PASSWORD:${DB_PASSWORD}}
+
+app:
+  jwt:
+    secret: segredo-somente-para-testes-de-integracao-0123456789
+  admin:
+    # vazio: os testes criam seus próprios usuários
+    password: ""

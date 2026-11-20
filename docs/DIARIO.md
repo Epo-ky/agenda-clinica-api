@@ -91,6 +91,36 @@ e horários livres do dia.
   `catch-all` e viraria 500 (o mesmo tipo de erro da etapa 4, antecipado).
 - O filtro JWT **não** é um `@Component`: como bean, ele seria registrado também fora do Spring Security.
 
+## 20/11/2026
+
+### Etapa 7: integração, cobertura, dados de exemplo, Docker e CI
+
+**O que foi feito:** 15 testes de integração (`*IT`) que sobem a aplicação inteira contra um PostgreSQL
+de verdade (login, agendamento, conflito de horário, regras de negócio, ciclo de vida, perfis e
+efeitos reais no banco), JaCoCo com meta de 80% nas classes `*Service`, migration `V3` com dados de
+exemplo, `Dockerfile` multi-stage, `docker-compose.yml` (API + PostgreSQL com healthcheck) e o
+workflow do GitHub Actions.
+
+**Resultado medido:** `mvn verify` com 114 testes unitários + 15 de integração passando.
+Cobertura de linhas: **99% nos services** (meta de 80%) e **92,9% no projeto todo**.
+
+**Decisões**
+- **Sem Testcontainers, por enquanto.** O Docker não está instalado nesta máquina (e o Windows não
+  reporta suporte a virtualização). Os testes de integração rodam num banco **separado**
+  (`agenda_clinica_test`) no PostgreSQL local; no CI, num PostgreSQL de serviço do próprio GitHub
+  Actions. Trocar para Testcontainers depois é só mudar de onde vem a conexão.
+- **Trava de segurança antes de limpar o banco:** cada teste de integração começa com `TRUNCATE`.
+  Para evitar apagar dados de desenvolvimento por engano, o teste se recusa a rodar se o nome do banco
+  não terminar em `_test`.
+- **Dados de exemplo relativos à data de execução:** as consultas de demonstração caem sempre na
+  semana seguinte (`date_trunc('week', now()) + 1 semana`), para o Swagger nunca mostrar consultas no
+  passado. `ON CONFLICT DO NOTHING` evita que a migration quebre num banco que já tenha esses registros.
+- Resíduo dos meus testes manuais da etapa 4 a 6 foi apagado do banco de desenvolvimento antes de
+  aplicar a `V3` (só as tabelas de pacientes, profissionais e consultas; o admin foi mantido).
+
+**Não validado localmente:** `Dockerfile`, `docker-compose.yml` e o job `docker` do CI foram
+escritos, mas nunca executados nesta máquina. Quem valida são os jobs do GitHub Actions.
+
 ## Limitações conhecidas
 
 - **Corrida no agendamento:** duas requisições simultâneas para o mesmo horário podem passar da checagem
@@ -101,7 +131,10 @@ e horários livres do dia.
 - O Flyway avisa que o PostgreSQL 18 é mais novo que a versão testada por ele (funciona, mas convém
   atualizar a dependência).
 
+- Testcontainers (PostgreSQL de verdade em container) fica como melhoria; hoje o banco de teste é o
+  PostgreSQL local ou o serviço do CI.
+
 ## Pendente
 
-- Etapa 7: testes de integração (Testcontainers), cobertura (JaCoCo), Docker e CI.
-- Etapa 8: README completo e post.
+- Conferir o resultado do CI no GitHub (primeira execução).
+- Etapa 8: README completo, badge do CI e post.
